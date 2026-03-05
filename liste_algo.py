@@ -99,4 +99,58 @@ def minimax(etat, profondeur, maximisant, alpha=-math.inf, beta=math.inf):
             beta = min(beta, evaluation)
             if beta <= alpha:
                 break
+
         return min_eval
+
+
+import math
+import random
+
+class Node:
+    def __init__(self, state, parent=None, move=None):
+        self.state = state
+        self.parent = parent
+        self.move = move
+        self.children = []
+        self.wins = 0
+        self.visits = 0
+        self.untried_moves = state.get_legal_moves()
+
+    def uct_select_child(self):
+        s = sorted(self.children, key=lambda c: c.wins / c.visits + math.sqrt(2 * math.log(self.visits) / c.visits))
+        return s[-1]
+
+    def add_child(self, move, state):
+        n = Node(state=state, parent=self, move=move)
+        self.untried_moves.remove(move)
+        self.children.append(n)
+        return n
+
+    def update(self, result):
+        self.visits += 1
+        self.wins += result
+
+def mcts(root_state, iterations):
+    root_node = Node(state=root_state)
+
+    for _ in range(iterations):
+        node = root_node
+        state = root_state.clone()
+
+        while not node.untried_moves and node.children:
+            node = node.uct_select_child()
+            state.make_move(node.move)
+
+        if node.untried_moves:
+            move = random.choice(node.untried_moves)
+            state.make_move(move)
+            node = node.add_child(move, state)
+
+        while state.get_legal_moves():
+            state.make_move(random.choice(state.get_legal_moves()))
+
+        while node is not None:
+            node.update(state.get_result(node.state.current_player))
+            node = node.parent
+
+    return sorted(root_node.children, key=lambda c: c.visits)[-1].move
